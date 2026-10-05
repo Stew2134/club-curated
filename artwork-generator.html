@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Club Curated Promo Card Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <style>
+    body { font-family: 'Space Grotesk', sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }
+    .container { display: flex; gap: 30px; flex-wrap: wrap; }
+    .form { width: 320px; display: flex; flex-direction: column; gap: 14px; }
+
+    label { font-size: 12px; text-transform: uppercase; color: #ffffff; font-weight: bold; letter-spacing: 1px; }
+    .optional-text { font-size: 10px; color: #aaa; text-transform: none; font-weight: normal; margin-left: 4px; }
+
+    .checkbox-row { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; }
+    .checkbox-row input { width: 18px; height: 18px; accent-color: #3b82f6; cursor: pointer; }
+    .checkbox-row label { cursor: pointer; font-size: 13px; color: #fff; }
+
+    input[type="text"], input[type="date"], input[type="time"], select, button {
+      padding: 10px; background: #1a1a1a; color: #fff; border: 1px solid #333; font-family: inherit; border-radius: 4px;
+    }
+    input[type="date"], input[type="time"] { color-scheme: dark; }
+    .time-row { display: flex; gap: 10px; }
+    .time-row div { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+
+    button { background: #3b82f6; color: #ffffff; font-weight: bold; border: none; cursor: pointer; margin-top: 10px; font-size: 14px; text-transform: uppercase; transition: background 0.2s ease; }
+    button:hover { background: #2563eb; }
+
+    canvas { background: #000; border: 1px solid #222; max-width: 420px; height: auto; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="form">
+    <label>Artist / Show Title</label>
+    <input type="text" id="titleInput" value="" placeholder="NIGHT DRIVE SESSIONS">
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="residentCheck">
+      <label for="residentCheck">Resident Show?</label>
+    </div>
+
+    <label>Genre(s) <span class="optional-text">(Optional)</span></label>
+    <input type="text" id="genreInput" value="" placeholder="TECH HOUSE / TECHNO">
+
+    <label>Date</label>
+    <input type="date" id="dateInput">
+
+    <div class="time-row">
+      <div>
+        <label>Start Time</label>
+        <input type="time" id="startTimeInput" value="22:00">
+      </div>
+      <div>
+        <label>End Time</label>
+        <input type="time" id="endTimeInput" value="00:00">
+      </div>
+    </div>
+
+    <label>Accent Line Color</label>
+    <select id="colorSelect">
+      <option value="#ffffff" selected>White</option>
+      <option value="#3b82f6">Medium Blue</option>
+      <option value="#800020">Burgundy</option>
+      <option value="#f4c2c2">Baby Pink</option>
+      <option value="#121212">Off-Black</option>
+    </select>
+
+    <label>Background Image</label>
+    <input type="file" id="imageInput" accept="image/*">
+
+    <label>Export Format</label>
+    <select id="formatSelect">
+      <option value="4x5">Instagram Feed (4:5 Portrait)</option>
+      <option value="9x16">Instagram Story (9:16 Full Screen)</option>
+    </select>
+
+    <button id="downloadBtn">Export to PNG</button>
+  </div>
+
+  <div class="preview">
+    <canvas id="cardCanvas" width="1080" height="1350"></canvas>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('cardCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const titleInput = document.getElementById('titleInput');
+  const residentCheck = document.getElementById('residentCheck');
+  const genreInput = document.getElementById('genreInput');
+  const dateInput = document.getElementById('dateInput');
+  const startTimeInput = document.getElementById('startTimeInput');
+  const endTimeInput = document.getElementById('endTimeInput');
+  const formatSelect = document.getElementById('formatSelect');
+  const colorSelect = document.getElementById('colorSelect');
+  const imageInput = document.getElementById('imageInput');
+  const downloadBtn = document.getElementById('downloadBtn');
+
+  const today = new Date().toISOString().split('T')[0];
+  dateInput.value = today;
+
+  let bgImage = null;
+
+  function formatDateString(rawDate) {
+    if (!rawDate) return '';
+    const [year, month, day] = rawDate.split('-');
+    return `${day}.${month}.${year}`;
+  }
+
+  function drawFittedText(text, x, y, maxWidth, initialFontSize) {
+    if (!text) return;
+    let fontSize = initialFontSize;
+    ctx.font = `700 ${fontSize}px "Space Grotesk", sans-serif`;
+
+    while (ctx.measureText(text).width > maxWidth && fontSize > 28) {
+      fontSize -= 2;
+      ctx.font = `700 ${fontSize}px "Space Grotesk", sans-serif`;
+    }
+
+    ctx.fillText(text, x, y);
+  }
+
+  function renderCard() {
+    if (formatSelect.value === '9x16') {
+      canvas.width = 1080;
+      canvas.height = 1920;
+    } else {
+      canvas.width = 1080;
+      canvas.height = 1350;
+    }
+
+    ctx.fillStyle = '#050505';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Background Photo
+    if (bgImage) {
+      const scale = Math.max(canvas.width / bgImage.width, canvas.height / bgImage.height);
+      const x = (canvas.width / 2) - (bgImage.width / 2) * scale;
+      const y = (canvas.height / 2) - (bgImage.height / 2) * scale;
+      ctx.drawImage(bgImage, x, y, bgImage.width * scale, bgImage.height * scale);
+    }
+
+    // SOFT BLACK FADE (BOTTOM FOR TEXT)
+    const fadeHeight = canvas.height * 0.40;
+    const bottomGradient = ctx.createLinearGradient(0, canvas.height - fadeHeight, 0, canvas.height);
+    bottomGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    bottomGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.7)');
+    bottomGradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+    ctx.fillStyle = bottomGradient;
+    ctx.fillRect(0, canvas.height - fadeHeight, canvas.width, fadeHeight);
+
+    ctx.textAlign = 'left';
+
+    // BADGES (RESIDENT & GENRES)
+    let currentBadgeX = 80;
+    const badgeY = canvas.height - 350;
+
+    // 1. Resident Badge
+    if (residentCheck.checked) {
+      const resText = "RESIDENT SHOW";
+      ctx.font = '700 22px "Space Grotesk", sans-serif';
+      const resWidth = ctx.measureText(resText).width + 30;
+
+      ctx.fillStyle = colorSelect.value;
+      ctx.beginPath();
+      ctx.roundRect(currentBadgeX, badgeY, resWidth, 38, 4);
+      ctx.fill();
+
+      const badgeHex = colorSelect.value.toLowerCase();
+      if (badgeHex === '#ffffff' || badgeHex === '#f4c2c2') {
+        ctx.fillStyle = '#000000';
+      } else {
+        ctx.fillStyle = '#ffffff';
+      }
+
+      ctx.fillText(resText, currentBadgeX + 15, badgeY + 26);
+
+      currentBadgeX += resWidth + 15;
+    }
+
+    // 2. Genre Badge
+    const genreText = genreInput.value.trim().toUpperCase();
+    if (genreText.length > 0) {
+      ctx.font = '700 22px "Space Grotesk", sans-serif';
+      const genreWidth = ctx.measureText(genreText).width + 30;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+
+      ctx.beginPath();
+      ctx.roundRect(currentBadgeX, badgeY, genreWidth, 38, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(genreText, currentBadgeX + 15, badgeY + 26);
+    }
+
+    ctx.fillStyle = '#ffffff';
+
+    // Fitted Title Rendering
+    drawFittedText(titleInput.value.toUpperCase(), 80, canvas.height - 240, canvas.width - 160, 72);
+
+    // Date & Time
+    const formattedDate = formatDateString(dateInput.value);
+    const timeString = `${startTimeInput.value} - ${endTimeInput.value}`;
+    ctx.font = '500 42px "Space Grotesk", sans-serif';
+    ctx.fillStyle = '#dddddd';
+    ctx.fillText(`${formattedDate}  |  ${timeString}`, 80, canvas.height - 180);
+
+    // Accent Line
+    ctx.fillStyle = colorSelect.value;
+    ctx.fillRect(80, canvas.height - 150, canvas.width - 160, 6);
+
+    // Station Line
+    ctx.font = '500 30px "Space Grotesk", sans-serif';
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText('Club Culture Live Broadcast | @club.curated', 80, canvas.height - 90);
+  }
+
+  imageInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        bgImage = new Image();
+        bgImage.onload = () => renderCard();
+        bgImage.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  [titleInput, residentCheck, genreInput, dateInput, startTimeInput, endTimeInput, formatSelect, colorSelect].forEach(input => {
+    input.addEventListener('input', renderCard);
+  });
+
+  downloadBtn.addEventListener('click', () => {
+    const link = document.createElement('a');
+    const fileName = titleInput.value.trim() ? titleInput.value.toLowerCase().replace(/\s+/g, '-') : 'promo-card';
+    link.download = `${fileName}-${formatSelect.value}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+  });
+
+  document.fonts.ready.then(() => renderCard());
+</script>
+
+</body>
+</html>
